@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hệ Mặt Trời 3D</title>
+    <style>
+      * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+      }
+
+      body {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: #000000;
+          overflow: hidden;
+      }
+
+      #canvas-container {
+          width: 100vw;
+          height: 100vh;
+          position: relative;
+      }
+
+      .info {
+          position: absolute;
+          top: 30px;
+          left: 50%;
+          transform: translateX(-50%);
+          text-align: center;
+          color: white;
+          z-index: 10;
+          pointer-events: none;
+      }
+
+      h1 {
+          font-size: 2.5em;
+          font-weight: 700;
+          margin-bottom: 10px;
+          text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+          letter-spacing: 3px;
+      }
+
+      .subtitle {
+          font-size: 1.1em;
+          opacity: 0.8;
+          letter-spacing: 2px;
+      }
+
+      .controls {
+          position: absolute;
+          bottom: 30px;
+          left: 50%;
+          transform: translateX(-50%);
+          color: white;
+          font-size: 0.9em;
+          opacity: 0.7;
+          text-align: center;
+          z-index: 10;
+      }
+
+      .brightness-control {
+          position: absolute;
+          top: 30px;
+          right: 30px;
+          z-index: 10;
+      }
+
+      .brightness-btn {
+          background: rgba(255, 255, 255, 0.1);
+          border: 2px solid rgba(255, 255, 255, 0.3);
+          color: white;
+          padding: 12px 20px;
+          font-size: 1.2em;
+          border-radius: 50px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          backdrop-filter: blur(10px);
+      }
+
+      .brightness-btn:hover {
+          background: rgba(255, 255, 255, 0.2);
+          border-color: rgba(255, 255, 255, 0.5);
+          transform: scale(1.05);
+      }
+
+      #open-quiz-btn {
+          transition: all 0.3s cubic-bezier(.4,2,.3,1);
+      }
+      #open-quiz-btn:hover {
+          background: #fff700;
+          color: #222;
+          box-shadow: 0 0 32px 8px #ffe066, 0 0 60px 16px #ffd700;
+          transform: scale(1.13) rotate(-2deg);
+          border: 2px solid #ffe066;
+          filter: brightness(1.15) drop-shadow(0 0 12px #fff700);
+      }
+
+      .brightness-btn:active {
+          transform: scale(0.95);
+      }
+
+      .active-btn {
+          box-shadow: 0 0 20px 5px rgba(255,255,255,0.5), 0 0 40px 10px rgba(255,255,255,0.2);
+          animation: glowPulse 1.2s infinite alternate;
+      }
+
+      @keyframes glowPulse {
+          0% { box-shadow: 0 0 10px 2px rgba(255,255,255,0.3); }
+          100% { box-shadow: 0 0 30px 10px rgba(255,255,255,0.7); }
+      }
+      }
+
+      @media (max-width: 768px) {
+          h1 { font-size: 1.8em; }
+          .subtitle { font-size: 0.9em; }
+          .controls { font-size: 0.8em; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="canvas-container"></div>
+
+    <!-- Minigame Quiz Popup -->
+    <div
+      id="quiz-popup"
+      style="
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #222;
+        color: #fff;
+        border-radius: 18px;
+        box-shadow: 0 0 30px #000;
+        z-index: 1000;
+        padding: 32px 28px;
+        min-width: 320px;
+        max-width: 90vw;
+      "
+    >
+      <h2 style="text-align: center; margin-bottom: 18px">
+        Minigame Thiên Văn Học
+      </h2>
+      <div
+        id="quiz-question"
+        style="font-size: 1.15em; margin-bottom: 18px"
+      ></div>
+      <div id="quiz-answers"></div>
+      <div id="quiz-feedback" style="margin-top: 14px; font-size: 1em"></div>
+      <button
+        id="quiz-next-btn"
+        style="
+          margin-top: 18px;
+          padding: 8px 22px;
+          border-radius: 8px;
+          background: #ffd700;
+          color: #222;
+          font-weight: 600;
+          border: none;
+          cursor: pointer;
+          display: none;
+        "
+      >
+        Câu tiếp theo
+      </button>
+      <button
+        id="quiz-close-btn"
+        style="
+          margin-top: 18px;
+          padding: 8px 22px;
+          border-radius: 8px;
+          background: #aaa;
+          color: #222;
+          font-weight: 600;
+          border: none;
+          cursor: pointer;
+        "
+      >
+        Đóng
+      </button>
+    </div>
+    <button
+      id="open-quiz-btn"
+      style="
+        position: fixed;
+        bottom: 40px;
+        right: 40px;
+        z-index: 900;
+        background: #ffd700;
+        color: #222;
+        font-weight: 600;
+        border: none;
+        border-radius: 50px;
+        padding: 16px 28px;
+        font-size: 1.1em;
+        box-shadow: 0 0 18px #222;
+        cursor: pointer;
+      "
+    >
+      Minigame Thiên Văn
+    </button>
+
+    <div class="info">
+      <h1>HỆ MẶT TRỜI 3D</h1>
+      <p class="subtitle">Khám phá vũ trụ bí ẩn</p>
+    </div>
+
+    <div
+      id="planet-info"
+      style="
+        display: none;
+        position: absolute;
+        left: 50%;
+        top: 90px;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        padding: 20px 30px;
+        border-radius: 16px;
+        z-index: 20;
+        min-width: 260px;
+        text-align: left;
+        box-shadow: 0 0 20px #222;
+        font-size: 1.1em;
+      "
+    ></div>
+    <!-- Đã di chuyển khung thông tin vào đúng trong body, loại bỏ thừa dấu đóng -->
+
+    <div class="controls">
+      🖱️ Kéo chuột để xoay | 🔍 Scroll để zoom
+      <div id="view-controls" style="margin-top: 15px">
+        <button
+          id="btn-all"
+          onclick="showAllPlanets()"
+          class="brightness-btn"
+          style="margin: 2px"
+        >
+          Toàn cảnh
+        </button>
+        <button
+          id="btn-sun"
+          onclick="showSun()"
+          class="brightness-btn"
+          style="margin: 2px"
+        >
+          Mặt Trời
+        </button>
+        <button
+          id="btn-0"
+          onclick="showPlanet(0)"
+          class="brightness-btn"
+          style="margin: 2px"
+        >
+          Thủy
+        </button>
+        <button
+          id="btn-1"
+          onclick="showPlanet(1)"
+          class="brightness-btn"
+          style="margin: 2px"
+        >
+          Kim
+        </button>
+        <button
+          id="btn-2"
+          onclick="showPlanet(2)"
+          class="brightness-btn"
+          style="margin: 2px"
+        >
+          Trái Đất
+        </button>
+        <button
+          id="btn-3"
+          onclick="showPlanet(3)"
+          class="brightness-btn"
+          style="margin: 2px"
+        >
+          Hỏa
+        </button>
+        <button
+          id="btn-4"
+          onclick="showPlanet(4)"
+          class="brightness-btn"
+          style="margin: 2px"
+        >
+          Mộc
+        </button>
+        <button
+          id="btn-5"
+          onclick="showPlanet(5)"
+          class="brightness-btn"
+          style="margin: 2px"
+        >
+          Thổ
+        </button>
+        <button
+          id="btn-6"
+          onclick="showPlanet(6)"
+          class="brightness-btn"
+          style="margin: 2px"
+        >
+          Thiên Vương
+        </button>
+        <button
+          id="btn-7"
+          onclick="showPlanet(7)"
+          class="brightness-btn"
+          style="margin: 2px"
+        >
+          Hải Vương
+        </button>
+      </div>
+    </div>
+
+    <div class="brightness-control">
+      <button class="brightness-btn" onclick="toggleBrightness()">💡</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+      // Bộ câu hỏi minigame thiên văn học
+      const quizQuestions = [
+        {
+          question: "Hành tinh nào gần Mặt Trời nhất?",
+          answers: ["a) Thủy", "b) Kim", "c) Trái Đất", "d) Hỏa"],
+          correct: 0,
+        },
+        {
+          question: "Hành tinh lớn nhất trong Hệ Mặt Trời là?",
+          answers: ["a) Mộc", "b) Thổ", "c) Hải Vương", "d) Trái Đất"],
+          correct: 0,
+        },
+        {
+          question: "Hành tinh nào có vành đai nổi bật nhất?",
+          answers: ["a) Mộc", "b) Thổ", "c) Thiên Vương", "d) Hỏa"],
+          correct: 1,
+        },
+        {
+          question: 'Hành tinh nào được gọi là "Hành tinh Đỏ"?',
+          answers: ["a) Hỏa", "b) Kim", "c) Thủy", "d) Trái Đất"],
+          correct: 0,
+        },
+        {
+          question: "Mặt Trời là loại sao gì?",
+          answers: [
+            "a) Sao lùn trắng",
+            "b) Sao lùn vàng",
+            "c) Sao khổng lồ đỏ",
+            "d) Sao neutron",
+          ],
+          correct: 1,
+        },
+        {
+          question: "Hành tinh nào xa Mặt Trời nhất?",
+          answers: ["a) Hải Vương", "b) Thiên Vương", "c) Thổ", "d) Mộc"],
+          correct: 0,
+        },
+        {
+          question: "Hành tinh nào có nhiều vệ tinh tự nhiên nhất?",
+          answers: ["a) Mộc", "b) Thổ", "c) Trái Đất", "d) Hỏa"],
+          correct: 0,
+        },
+        {
+          question: "Hành tinh nào có khí quyển chủ yếu là CO2?",
+          answers: ["a) Kim", "b) Hỏa", "c) Mộc", "d) Thủy"],
+          correct: 0,
+        },
+        {
+          question: "Hành tinh nào có ngày dài hơn năm?",
+          answers: ["a) Kim", "b) Thủy", "c) Hỏa", "d) Mộc"],
+          correct: 0,
+        },
+        {
+          question: "Thiên hà chứa Hệ Mặt Trời tên là gì?",
+          answers: [
+            "a) Thiên hà Tiên Nữ",
+            "b) Thiên hà Xoắn Ốc",
+            "c) Dải Ngân Hà",
+            "d) Thiên hà Sombrero",
+          ],
+          correct: 2,
+        },
+      ];
+
+      let quizIndex = 0;
+      let quizScore = 0;
+      let quizAnswered = false;
+
+      function showQuizQuestion() {
+        const q = quizQuestions[quizIndex];
+        document.getElementById("quiz-question").textContent = `Câu ${
+          quizIndex + 1
+        }: ${q.question}`;
+        const answersDiv = document.getElementById("quiz-answers");
+        answersDiv.innerHTML = "";
+        q.answers.forEach((ans, i) => {
+          const btn = document.createElement("button");
+          btn.textContent = ans;
+          btn.style.margin = "6px 0";
+          btn.style.padding = "8px 18px";
+          btn.style.borderRadius = "8px";
+          btn.style.background = "#333";
+          btn.style.color = "#ffd700";
+          btn.style.fontWeight = "600";
+          btn.style.border = "2px solid #ffd700";
+          btn.style.cursor = "pointer";
+          btn.onclick = () => selectQuizAnswer(i);
+          btn.disabled = quizAnswered;
+          answersDiv.appendChild(btn);
+        });
+        document.getElementById("quiz-feedback").textContent = "";
+        document.getElementById("quiz-next-btn").style.display = "none";
+        quizAnswered = false;
+      }
+
+      function selectQuizAnswer(idx) {
+        if (quizAnswered) return;
+        quizAnswered = true;
+        const q = quizQuestions[quizIndex];
+        const feedback = document.getElementById("quiz-feedback");
+        if (idx === q.correct) {
+          quizScore++;
+          feedback.textContent = "✅ Chính xác!";
+          feedback.style.color = "#00ff99";
+        } else {
+          feedback.textContent = `❌ Sai! Đáp án đúng là ${
+            q.answers[q.correct]
+          }`;
+          feedback.style.color = "#ff4444";
+        }
+        Array.from(document.getElementById("quiz-answers").children).forEach(
+          (btn) => (btn.disabled = true)
+        );
+        document.getElementById("quiz-next-btn").style.display = "inline-block";
+      }
+
+      function nextQuizQuestion() {
+        quizIndex++;
+        quizAnswered = false;
+        if (quizIndex < quizQuestions.length) {
+          showQuizQuestion();
+        } else {
+          showQuizResult();
+        }
+      }
+
+      function showQuizResult() {
+        document.getElementById(
+          "quiz-question"
+        ).textContent = `Hoàn thành! Bạn đúng ${quizScore}/10 câu.`;
+        document.getElementById("quiz-answers").innerHTML = "";
+        document.getElementById("quiz-feedback").textContent =
+          quizScore >= 7
+            ? "🎉 Tuyệt vời! Bạn rất am hiểu thiên văn học!"
+            : "👍 Hãy thử lại để đạt điểm cao hơn nhé!";
+        document.getElementById("quiz-next-btn").style.display = "none";
+      }
+
+      document.getElementById("open-quiz-btn").onclick = function () {
+        quizIndex = 0;
+        quizScore = 0;
+        document.getElementById("quiz-popup").style.display = "block";
+        showQuizQuestion();
+      };
+      document.getElementById("quiz-next-btn").onclick = nextQuizQuestion;
+      document.getElementById("quiz-close-btn").onclick = function () {
+        document.getElementById("quiz-popup").style.display = "none";
+      };
+      let scene,
+        camera,
+        renderer,
+        planets = [];
+      let mouseX = 0,
+        mouseY = 0;
+      let targetX = 0,
+        targetY = 0;
+      let ambientLight, sunLight;
+      let isDarkMode = true;
+      let planetGroups = [];
+      // Đưa dữ liệu hành tinh ra phạm vi toàn cục
+      const planetData = [
+        {
+          name: "Thủy",
+          size: 0.8,
+          distance: 12,
+          color: 0x8c7853,
+          speed: 0.008,
+          age: "4.5 tỷ năm",
+          mass: "3.3 x 10^20",
+          distanceEarth: "77 triệu km",
+        },
+        {
+          name: "Kim",
+          size: 1.5,
+          distance: 18,
+          color: 0xffc649,
+          speed: 0.006,
+          age: "4.5 tỷ năm",
+          mass: "4.87 x 10^21",
+          distanceEarth: "41 triệu km",
+        },
+        {
+          name: "Trái Đất",
+          size: 1.6,
+          distance: 25,
+          color: 0x4a90e2,
+          speed: 0.005,
+          age: "4.54 tỷ năm",
+          mass: "5.97 x 10^21",
+          distanceEarth: "0 km",
+        },
+        {
+          name: "Hỏa",
+          size: 1.2,
+          distance: 32,
+          color: 0xe27b58,
+          speed: 0.004,
+          age: "4.6 tỷ năm",
+          mass: "6.42 x 10^20",
+          distanceEarth: "78 triệu km",
+        },
+        {
+          name: "Mộc",
+          size: 3.5,
+          distance: 45,
+          color: 0xc88b3a,
+          speed: 0.003,
+          age: "4.5 tỷ năm",
+          mass: "1.90 x 10^24",
+          distanceEarth: "628 triệu km",
+        },
+        {
+          name: "Thổ",
+          size: 3,
+          distance: 58,
+          color: 0xfad5a5,
+          speed: 0.002,
+          age: "4.5 tỷ năm",
+          mass: "5.68 x 10^23",
+          distanceEarth: "1.2 tỷ km",
+        },
+        {
+          name: "Thiên Vương",
+          size: 2.2,
+          distance: 70,
+          color: 0x4fc3f7,
+          speed: 0.0015,
+          age: "4.5 tỷ năm",
+          mass: "8.68 x 10^22",
+          distanceEarth: "2.6 tỷ km",
+        },
+        {
+          name: "Hải Vương",
+          size: 2.1,
+          distance: 82,
+          color: 0x4169e1,
+          speed: 0.001,
+          age: "4.5 tỷ năm",
+          mass: "1.02 x 10^23",
+          distanceEarth: "4.3 tỷ km",
+        },
+      ];
+
+      function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000
+        );
+        camera.position.set(0, 50, 100);
+        camera.lookAt(0, 0, 0);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document
+          .getElementById("canvas-container")
+          .appendChild(renderer.domElement);
+        // Thêm ánh sáng
+        ambientLight = new THREE.AmbientLight(0x333333);
+        scene.add(ambientLight);
+        sunLight = new THREE.PointLight(0xffffff, 2, 300);
+        sunLight.position.set(0, 0, 0);
+        sunLight.castShadow = true;
+        scene.add(sunLight);
+        // Tạo mặt trời
+        const sunGeometry = new THREE.SphereGeometry(5, 32, 32);
+        const sunMaterial = new THREE.MeshBasicMaterial({
+          color: 0xfdb813, // vàng đồng
+          emissive: 0xfdb813, // vàng đồng
+          emissiveIntensity: 3, // sáng hơn rõ rệt
+        });
+        const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        scene.add(sun);
+        window.sunMesh = sun;
+        // Viền sáng trắng vàng quanh mặt trời
+        const glowGeometry = new THREE.SphereGeometry(5.7, 32, 32); // viền nhỏ hơn
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffffee, // trắng vàng nhạt
+          transparent: true,
+          opacity: 0.32,
+          blending: THREE.AdditiveBlending,
+        });
+        const sunGlowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+        sunGlowMesh.position.copy(sun.position);
+        scene.add(sunGlowMesh);
+        // Ánh sáng phát ra từ mặt trời
+        const sunGlow = new THREE.PointLight(0xfdb813, 1.5, 200);
+        sun.add(sunGlow);
+        // Dữ liệu các hành tinh đã đưa ra ngoài
+        // Tạo các hành tinh
+        planetData.forEach((data) => {
+          const planetGroup = new THREE.Group();
+          // Quỹ đạo
+          const orbitGeometry = new THREE.RingGeometry(
+            data.distance - 0.1,
+            data.distance + 0.1,
+            64
+          );
+          const orbitMaterial = new THREE.MeshBasicMaterial({
+            color: 0x444444,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.3,
+          });
+          const orbit = new THREE.Mesh(orbitGeometry, orbitMaterial);
+          orbit.rotation.x = Math.PI / 2;
+          scene.add(orbit);
+          // Hành tinh
+          const planetGeometry = new THREE.SphereGeometry(data.size, 32, 32);
+          const planetMaterial = new THREE.MeshPhongMaterial({
+            color: data.color,
+            shininess: 30,
+          });
+          const planet = new THREE.Mesh(planetGeometry, planetMaterial);
+          planet.position.x = data.distance;
+          planet.castShadow = true;
+          planet.receiveShadow = true;
+          planetGroup.add(planet);
+          scene.add(planetGroup);
+          planetGroups.push(planetGroup);
+
+          // Thêm vành đai cho Sao Thổ
+          if (data.name === "Thổ") {
+            const ringGeometry = new THREE.RingGeometry(
+              data.size * 1.5,
+              data.size * 2.2,
+              32
+            );
+            const ringMaterial = new THREE.MeshBasicMaterial({
+              color: 0xfad5a5,
+              side: THREE.DoubleSide,
+              transparent: true,
+              opacity: 0.7,
+            });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            ring.rotation.x = Math.PI / 2;
+            planet.add(ring);
+          }
+
+          planets.push({
+            group: planetGroup,
+            planet: planet,
+            speed: data.speed,
+            distance: data.distance,
+            angle: Math.random() * Math.PI * 2,
+          });
+        });
+
+        // Tạo ngôi sao nền
+        const starsGeometry = new THREE.BufferGeometry();
+        const starsMaterial = new THREE.PointsMaterial({
+          color: 0xffffff,
+          size: 0.5,
+        });
+
+        const starsVertices = [];
+        for (let i = 0; i < 3000; i++) {
+          const x = (Math.random() - 0.5) * 500;
+          const y = (Math.random() - 0.5) * 500;
+          const z = (Math.random() - 0.5) * 500;
+          starsVertices.push(x, y, z);
+        }
+
+        starsGeometry.setAttribute(
+          "position",
+          new THREE.Float32BufferAttribute(starsVertices, 3)
+        );
+        const stars = new THREE.Points(starsGeometry, starsMaterial);
+        scene.add(stars);
+
+        // Xử lý chuột
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("wheel", onWheel);
+        window.addEventListener("resize", onWindowResize);
+      }
+
+      function onMouseMove(event) {
+        mouseX = (event.clientX - window.innerWidth / 2) / 100;
+        mouseY = (event.clientY - window.innerHeight / 2) / 100;
+      }
+
+      function onWheel(event) {
+        camera.position.z += event.deltaY * 0.05;
+        camera.position.z = Math.max(30, Math.min(150, camera.position.z));
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      function toggleBrightness() {
+        isDarkMode = !isDarkMode;
+
+        if (isDarkMode) {
+          // Chế độ tối
+          renderer.setClearColor(0x000000);
+          ambientLight.intensity = 0.3;
+          sunLight.intensity = 2;
+        } else {
+          // Chế độ sáng
+          renderer.setClearColor(0x1a1a2e);
+          ambientLight.intensity = 0.8;
+          sunLight.intensity = 1.5;
+        }
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        // Di chuyển camera mượt mà theo chuột
+        targetX = mouseX * 0.3;
+        targetY = mouseY * 0.3;
+
+        camera.position.x += (targetX - camera.position.x) * 0.05;
+        camera.position.y += (targetY - camera.position.y + 50) * 0.05;
+        camera.lookAt(0, 0, 0);
+
+        // Xoay các hành tinh
+        planets.forEach((data) => {
+          data.angle += data.speed;
+          data.group.rotation.y = data.angle;
+          data.planet.rotation.y += 0.01;
+        });
+
+        renderer.render(scene, camera);
+      }
+      function showAllPlanets() {
+        document.getElementById("planet-info").style.display = "none";
+        planetGroups.forEach((g) => (g.visible = true));
+        if (window.sunMesh) window.sunMesh.visible = true;
+        camera.position.set(0, 50, 100);
+        camera.lookAt(0, 0, 0);
+        renderer.setClearColor(isDarkMode ? 0x000000 : 0x1a1a2e);
+        ambientLight.color.setHex(0x333333);
+        updateActiveButton("all");
+      }
+
+      function showPlanet(idx) {
+        planetGroups.forEach((g) => (g.visible = false));
+        if (planetGroups[idx]) planetGroups[idx].visible = true;
+        if (window.sunMesh) window.sunMesh.visible = true;
+        const data = planetData[idx];
+        document.getElementById("planet-info").innerHTML = `<b>${
+          data.name
+        }</b><br>Năm tuổi: ${data.age}<br>Khoảng cách tới Mặt Trời: ${
+          data.distance * 10
+        } triệu km<br>Khối lượng: ${
+          data.mass
+        } tấn<br>Khoảng cách tới Trái Đất: ${data.distanceEarth}`;
+        document.getElementById("planet-info").style.display = "block";
+        const planet = planets[idx].planet;
+        const targetPos = planet.getWorldPosition(new THREE.Vector3());
+        camera.position.x = targetPos.x;
+        camera.position.y = targetPos.y + 5;
+        camera.position.z = targetPos.z + 10;
+        camera.lookAt(targetPos);
+        const colorMap = [
+          0x8c7853, 0xffc649, 0x4a90e2, 0xe27b58, 0xc88b3a, 0xfad5a5, 0x4fc3f7,
+          0x4169e1,
+        ];
+        renderer.setClearColor(colorMap[idx]);
+        ambientLight.color.setHex(colorMap[idx]);
+        updateActiveButton(idx);
+      }
+
+      function showSun() {
+        planetGroups.forEach((g) => (g.visible = false));
+        if (window.sunMesh) window.sunMesh.visible = true;
+        document.getElementById(
+          "planet-info"
+        ).innerHTML = `<b>Mặt Trời</b><br>Năm tuổi: 4.6 tỷ năm<br>Khối lượng: 1.989 x 10^27 tấn<br>Khoảng cách tới Trái Đất: 149.6 triệu km`;
+        document.getElementById("planet-info").style.display = "block";
+        camera.position.set(0, 5, 15);
+        camera.lookAt(0, 0, 0);
+        renderer.setClearColor(0xfdb813);
+        ambientLight.color.setHex(0xfdb813);
+        updateActiveButton("sun");
+      }
+
+      init();
+      animate();
+    </script>
+  </body>
+</html>
