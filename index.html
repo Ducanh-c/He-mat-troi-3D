@@ -321,6 +321,24 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
+// Hiệu ứng sao băng và vệt sáng
+let meteors = [];
+let meteorTrails = [];
+function spawnMeteor() {
+  const meteorGeometry = new THREE.SphereGeometry(0.32, 12, 12); // to hơn
+  const meteorMaterial = new THREE.MeshBasicMaterial({color: 0xffffff, transparent:true, opacity:0.8});
+  const meteor = new THREE.Mesh(meteorGeometry, meteorMaterial);
+  meteor.position.set(
+    (Math.random()-0.5)*120,
+    30 + Math.random()*30,
+    (Math.random()-0.5)*120
+  );
+  // Giảm tốc độ bay
+  meteor.userData = {vx: -0.28-Math.random()*0.32, vy: -0.45-Math.random()*0.55, vz: 0.04-Math.random()*0.09, life: 0, trail: []}; // chậm hơn
+  scene.add(meteor);
+  meteors.push(meteor);
+}
+let meteorInterval;
       // Bộ câu hỏi minigame thiên văn học
       const quizQuestions = [
         {
@@ -565,6 +583,10 @@
       ];
 
       function init() {
+  // Khởi động hiệu ứng sao băng sau khi scene đã tạo
+  meteors = [];
+  if (meteorInterval) clearInterval(meteorInterval);
+  meteorInterval = setInterval(spawnMeteor, 1200);
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(
           75,
@@ -732,6 +754,42 @@
       }
 
       function animate() {
+  // Animate meteors và vệt sáng
+  for (let i = meteors.length-1; i >= 0; i--) {
+    const m = meteors[i];
+    // Di chuyển chậm hơn
+    m.position.x += m.userData.vx*0.12;
+    m.position.y += m.userData.vy*0.12;
+    m.position.z += m.userData.vz*0.12;
+    m.userData.life += 1;
+    // Tạo vệt sáng phía sau
+    if (m.userData.life % 2 === 0) {
+      const trailGeo = new THREE.SphereGeometry(0.16, 8, 8); // vệt to hơn
+      const trailMat = new THREE.MeshBasicMaterial({color: 0xfff700, transparent:true, opacity:0.45});
+      const trail = new THREE.Mesh(trailGeo, trailMat);
+      trail.position.copy(m.position);
+      trail.userData = {fade: 1.0};
+      scene.add(trail);
+      m.userData.trail.push(trail);
+    }
+    // Làm vệt sáng tan dần
+    for (let j = m.userData.trail.length-1; j >= 0; j--) {
+      const t = m.userData.trail[j];
+      t.userData.fade -= 0.04;
+      t.material.opacity = Math.max(0, t.userData.fade * 0.45);
+      if (t.userData.fade <= 0) {
+        scene.remove(t);
+        m.userData.trail.splice(j,1);
+      }
+    }
+    // Xóa meteor khi hết vòng đời
+    if (m.userData.life > 70 || m.position.y < -10) {
+      // Xóa vệt còn lại
+      m.userData.trail.forEach(t => scene.remove(t));
+      scene.remove(m);
+      meteors.splice(i,1);
+    }
+  }
         requestAnimationFrame(animate);
 
         // Di chuyển camera mượt mà theo chuột
